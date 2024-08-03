@@ -31,7 +31,7 @@ namespace api
                             new Claim(ClaimTypes.Email, _user.Email)
                         ]
                     ),
-                    Expires = DateTime.UtcNow.AddHours(2),
+                    Expires = DateTime.UtcNow.AddYears(100),
                     SigningCredentials = new SigningCredentials(
                         new SymmetricSecurityKey(
                             Encoding.UTF8.GetBytes(_config["JWT:SECRET_KEY"]!)

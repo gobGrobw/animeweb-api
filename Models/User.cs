@@ -8,7 +8,7 @@ using Supabase.Postgrest.Models;
 
 namespace api.Models
 {
-    [Table("user_test")]
+    [Table("user")]
     public class User : BaseModel
     {
         [PrimaryKey("id")]
@@ -25,5 +25,8 @@ namespace api.Models
 
         [Column("anime_list")]
         public List<AnimeWatchlist> AnimeList { get; set; } = [];
+
+        [Column("manga_list")]
+        public List<MangaReadlist> MangaList { get; set; } = [];
     }
 }

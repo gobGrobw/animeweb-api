@@ -7,45 +7,46 @@ using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
 using api.Models;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Cors;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Newtonsoft.Json;
 using Supabase.Postgrest.Responses;
+using static System.Net.WebRequestMethods;
 using static api.AuthService;
 
 namespace api.Routers
 {
+    [EnableCors("AllowCors")]
+    [Authorize]
     [ApiController]
-    [Route("api/Auth")]
+    [Route("api/auth")]
     public class UserController(Supabase.Client context, IConfiguration config) : ControllerBase
     {
         private readonly Supabase.Client _context = context;
         private readonly IConfiguration _config = config;
         Dictionary<string, object>? jsonResponse;
 
-        // GET: /api/User
-        [HttpGet]
-        public async Task<ActionResult> GetAllUsers()
-        {
-            ModeledResponse<User> respond = await _context.From<User>().Get();
-            return Ok(respond);
-        }
-
-        // GET: /api/User/{id}
+        // GET: /api/Auth/{id}
         [HttpGet("{username}")]
-        public async Task<ModeledResponse<User>> GetSpecificUser(string username)
+        [DisableCors]
+        public async Task<ActionResult> GetSpecificUser(string username)
         {
             ModeledResponse<User> user = await _context
                 .From<User>()
+                .Select(x => new object[] { x.Id, x.Username, x.Email, x.AnimeList })
                 .Where(x => x.Username == username)
                 .Get();
-            return user;
+
+            return Ok(user);
         }
 
-        // POST: /api/User/sign-up
+        // POST: /api/Auth/sign-up
         [HttpPost]
         [Route("sign-up")]
-        public async Task<ActionResult> CreateUser(User user)
+        [AllowAnonymous]
+        public async Task<ActionResult> CreateUser([FromBody] User user)
         {
             // Check if user or email already registered
             ModeledResponse<User> userExist = await _context
@@ -83,11 +84,12 @@ namespace api.Routers
             return BadRequest("Uhm something bad happened");
         }
 
-        // POST: /api/User/log-in
+        // POST: /api/Auth/log-in
         // This ask for username and password, no email needed
         [HttpPost]
         [Route("log-in")]
-        public async Task<ActionResult> LoginUser(User user)
+        [AllowAnonymous]
+        public async Task<ActionResult> LoginUser([FromBody] User user)
         {
             // Find the user account
             ModeledResponse<User> userExist = await _context

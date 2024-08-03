@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IdentityModel.Tokens.Jwt;
 using System.Linq;
@@ -14,17 +14,17 @@ namespace api.Controllers
 {
     [Authorize]
     [ApiController]
-    [Route("api/AnimeList")]
+    [Route("api/MangaList")]
     [EnableCors("AllowCors")]
-    public class AnimeListController(Supabase.Client context) : ControllerBase
+    public class MangaListController(Supabase.Client context) : ControllerBase
     {
         private readonly Supabase.Client _context = context;
         private readonly AuthService authService = new();
 
-        // GET: /api/AnimeList/{id}
+        // GET: /api/MangaList/{id}
         // Get anime in user list based on id
         [HttpGet("{id}")]
-        public async Task<ActionResult> GetAnimeList(long id)
+        public async Task<ActionResult> GetMangaList(long id)
         {
             JwtPayload jwtClaims = authService.GetAndDecodeJwtToken(Request);
             string username = (string)jwtClaims.First(p => p.Key == "unique_name").Value;
@@ -35,21 +35,21 @@ namespace api.Controllers
                 .Where(x => x.Username == username && x.Email == email)
                 .Get();
 
-            var userAnimeList = user.Model!.AnimeList.Where(x => x.Id == id);
-            return Ok(userAnimeList);
+            var userMangaList = user.Model!.MangaList.Where(x => x.Id == id);
+            return Ok(userMangaList);
         }
 
-        // GET: /api/AnimeList/all
-        // Get all anime saved by user
+        // GET: /api/MangaList/all
+        // Get all manga saved by user
         [HttpGet]
         [Route("all")]
-        public async Task<ActionResult> GetAllAnimeList()
+        public async Task<ActionResult> GetMangaList()
         {
             JwtPayload jwtClaims = authService.GetAndDecodeJwtToken(Request);
             string username = (string)jwtClaims.First(p => p.Key == "unique_name").Value;
             string email = (string)jwtClaims.First(p => p.Key == "email").Value;
 
-            ModeledResponse<User> userAnimeList = await _context
+            ModeledResponse<User> userMangaList = await _context
                 .From<User>()
                 .Where(x => x.Username == username && x.Email == email)
                 .Get();
@@ -57,15 +57,15 @@ namespace api.Controllers
             Dictionary<string, object> response =
                 new()
                 {
-                    { "payload", userAnimeList.Model!.AnimeList },
-                    { "count", userAnimeList.Model!.AnimeList.Count },
+                    { "payload", userMangaList.Model!.MangaList },
+                    { "count", userMangaList.Model!.MangaList.Count },
                     {
-                        "watching",
-                        userAnimeList
-                            .Model!.AnimeList.Where(x =>
+                        "reading",
+                        userMangaList
+                            .Model!.MangaList.Where(x =>
                                 string.Equals(
-                                    x.WatchStatus,
-                                    "watching",
+                                    x.ReadStatus,
+                                    "reading",
                                     StringComparison.OrdinalIgnoreCase
                                 )
                             )
@@ -73,10 +73,10 @@ namespace api.Controllers
                     },
                     {
                         "completed",
-                        userAnimeList
-                            .Model!.AnimeList.Where(x =>
+                        userMangaList
+                            .Model!.MangaList.Where(x =>
                                 string.Equals(
-                                    x.WatchStatus,
+                                    x.ReadStatus,
                                     "completed",
                                     StringComparison.OrdinalIgnoreCase
                                 )
@@ -85,10 +85,10 @@ namespace api.Controllers
                     },
                     {
                         "planned",
-                        userAnimeList
-                            .Model!.AnimeList.Where(x =>
+                        userMangaList
+                            .Model!.MangaList.Where(x =>
                                 string.Equals(
-                                    x.WatchStatus,
+                                    x.ReadStatus,
                                     "planned",
                                     StringComparison.OrdinalIgnoreCase
                                 )
@@ -97,10 +97,10 @@ namespace api.Controllers
                     },
                     {
                         "dropped",
-                        userAnimeList
-                            .Model!.AnimeList.Where(x =>
+                        userMangaList
+                            .Model!.MangaList.Where(x =>
                                 string.Equals(
-                                    x.WatchStatus,
+                                    x.ReadStatus,
                                     "dropped",
                                     StringComparison.OrdinalIgnoreCase
                                 )
@@ -112,11 +112,11 @@ namespace api.Controllers
             return Ok(response);
         }
 
-        // POST: /api/AnimeList/add
-        // Add anime to user list
+        // POST: /api/MangaList/add
+        // Add manga to user list
         [HttpPost]
         [Route("add")]
-        public async Task<ActionResult> AddAnimeToList([FromBody] AnimeWatchlist animeList)
+        public async Task<ActionResult> AddMangaToList([FromBody] MangaReadlist mangaList)
         {
             JwtPayload jwtClaims = authService.GetAndDecodeJwtToken(Request);
             string username = (string)jwtClaims.First(p => p.Key == "unique_name").Value;
@@ -127,17 +127,18 @@ namespace api.Controllers
                 .Where(x => x.Username == username && x.Email == email)
                 .Single();
 
-            user!.AnimeList!.Add(animeList);
+            user!.MangaList!.Add(mangaList);
+            Console.WriteLine(mangaList.ImgUrl);
             await user.Update<User>();
 
             return Ok(user);
         }
 
-        // PATCH: /api/AnimeList/update
-        // Update watch status of anime (watching, completed, etc)
+        // PATCH: /api/MangaList/patch
+        // Update read status of manga
         [HttpPatch]
         [Route("update")]
-        public async Task<ActionResult> UpdateAnimeList([FromBody] AnimeWatchlist patchedList)
+        public async Task<ActionResult> UpdateMangaList([FromBody] MangaReadlist patchedList)
         {
             JwtPayload jwtClaims = authService.GetAndDecodeJwtToken(Request);
             string username = (string)jwtClaims.First(p => p.Key == "unique_name").Value;
@@ -148,20 +149,20 @@ namespace api.Controllers
                 .Where(x => x.Username == username && x.Email == email)
                 .Single();
 
-            AnimeWatchlist anime = user!.AnimeList.First(x => x.Id == patchedList.Id)!;
-            anime.Id = patchedList.Id;
-            anime.Title = patchedList.Title;
-            anime.WatchStatus = patchedList.WatchStatus;
+            MangaReadlist manga = user!.MangaList.Find(x => x.Id == patchedList.Id)!;
+            manga.Id = patchedList.Id;
+            manga.Title = patchedList.Title;
+            manga.ReadStatus = patchedList.ReadStatus;
             await user.Update<User>();
 
-            return Ok(anime);
+            return Ok(manga);
         }
 
-        // DELETE: /api/AnimeList/delete
-        // delete anime from list
+        // DELETE: /api/MangaList/delete/{id}
+        // delete manga from list
         [HttpDelete]
         [Route("delete/{id}")]
-        public async Task<ActionResult> DeleteAnimeFromList(long id)
+        public async Task<ActionResult> DeleteMangaFromList(long id)
         {
             JwtPayload jwtClaims = authService.GetAndDecodeJwtToken(Request);
             string username = (string)jwtClaims.First(p => p.Key == "unique_name").Value;
@@ -172,8 +173,8 @@ namespace api.Controllers
                 .Where(x => x.Username == username && x.Email == email)
                 .Single();
 
-            AnimeWatchlist animeToRemove = user!.AnimeList.Find(x => x.Id == id)!;
-            user!.AnimeList.Remove(animeToRemove);
+            MangaReadlist mangaToRemove = user!.MangaList.Find(x => x.Id == id)!;
+            user!.MangaList.Remove(mangaToRemove);
             await user.Update<User>();
 
             return Ok(user);
